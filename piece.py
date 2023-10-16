@@ -91,9 +91,6 @@ class Piece:
         self.orientation = self.orientations[self.orientations_index]
         self.spawn_delay = True
 
-    def is_move_possible(self, board):
-        pass
-
     def can_move_down(self, board):
         before_piece = copy.deepcopy(self)
         self.row -= 1

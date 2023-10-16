@@ -18,15 +18,15 @@ class Agent():
         self.model = Linear_QNet(14, 256, 5)
         self.trainer = QTrainer(self.model, lr=LR, gamma=self.gamma)
 
-    def get_state(self, game):
+    def get_state(self, board, curr_piece, next_piece):
         state = []
-        heights = game.board.get_height_of_each_column()
+        heights = board.get_height_of_each_column()
         # Heights for each column, left to right, 0 - 9
         state.extend(heights)
         # Current pieces position on the board along with its rotation, 10 - 12
-        state.extend([game.curr_piece.col, game.curr_piece.row, game.curr_piece.orientation])
+        state.extend([curr_piece.col, curr_piece.row, curr_piece.orientation])
         # Next Pieces shape, 13
-        state.append(game.next_piece.orientation)
+        state.append(next_piece.orientation)
         return np.array(state, dtype=int) # size of 14
 
     def remember(self, state, action, reward, next_state, done):

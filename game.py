@@ -88,12 +88,6 @@ class Game:
         self.fall()
         self.fall_time += 1
 
-        bumpiness, double_well, bearable_height = self.board.get_bumpiness()
-        holes = self.board.get_holes()
-        reward = (WELL_COEFFICIENT * double_well) - (HOLE_COEFFICIENT * holes) + (HEIGHT_COEFFICIENT * bearable_height) - bumpiness
-
-        return reward
-
     # action = [MOVEMENT, ROTATION], 0 = No input, otherwise do input
     def move(self, action):
         if action == [1, 0, 0, 0, 0]:

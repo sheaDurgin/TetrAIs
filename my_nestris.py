@@ -4,6 +4,7 @@ from agent import Agent
 import os
 import pygame
 from helper import plot
+import copy
 
 WELL_COEFFICIENT = 5
 HOLE_COEFFICIENT = 1
@@ -48,19 +49,30 @@ def main(starting_level):
         return -1
     agent = Agent()
     while game.running:
-        state_old = agent.get_state(game)
+        state_old = agent.get_state(game.board, game.curr_piece, game.next_piece)
         final_move = agent.get_action(state_old)
 
         game.run(final_move)
 
-        if not game.curr_piece.can_move:
+        if game.curr_piece.can_move:
+            test_board = copy.deepcopy(game.board)
+            test_curr_piece = copy.deepcopy(game.curr_piece)
+            test_next_piece = copy.deepcopy(game.next_piece)
+            while test_curr_piece.can_move:
+                test_curr_piece.move_down(test_board)
+            bumpiness, double_well, bearable_height = test_board.get_bumpiness()
+            holes = test_board.get_holes()
+            reward = (WELL_COEFFICIENT * double_well) - (HOLE_COEFFICIENT * holes) + (HEIGHT_COEFFICIENT * bearable_height) - bumpiness
+            state_new = agent.get_state(test_board, test_curr_piece, test_next_piece)
+            agent.train_short_memory(state_old, final_move, reward, state_new, game.done)
+            agent.remember(state_old, final_move, reward, state_new, game.done)
+        else:
             lines_cleared = piece_landed(game)
-            print(lines_cleared)
             bumpiness, double_well, bearable_height = game.board.get_bumpiness()
             holes = game.board.get_holes()
             reward = (WELL_COEFFICIENT * double_well) - (HOLE_COEFFICIENT * holes) + (HEIGHT_COEFFICIENT * bearable_height) - bumpiness + lines_cleared
 
-            state_new = agent.get_state(game)
+            state_new = agent.get_state(game.board, game.curr_piece, game.next_piece)
             agent.train_short_memory(state_old, final_move, reward, state_new, game.done)
             agent.remember(state_old, final_move, reward, state_new, game.done)
         
