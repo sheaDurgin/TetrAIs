@@ -16,9 +16,6 @@ screen_height = 900
 NEXT_PIECE_X = 500
 NEXT_PIECE_Y = 1065
 
-SHIFT_DELAY = 16  # Initial delay before repeating the sideways move
-SHIFT_INTERVAL = 6  # Interval between repeated sideways moves
-
 RIGHT = 1
 LEFT = -1
 CLOCKWISE = 1
@@ -36,14 +33,6 @@ offsets = {
     12: (-2, -2), 13: (-1, -2), 14: (0, -2), 15: (1, -2),
 }
 
-def resource_path(relative_path):
-    try:
-        base_path = sys._MEIPASS
-    except Exception:
-        base_path = os.path.abspath(".")
-
-    return os.path.join(base_path, relative_path)
-
 class Game:
     def __init__(self, high_score, starting_level):
         self.high_score = high_score
@@ -53,7 +42,7 @@ class Game:
         self.font = pygame.font.SysFont("comicsans", 36)
         self.screen = pygame.display.set_mode((screen_width, screen_height))
         self.screen.fill("black")
-        self.first_level = self.select_level(starting_level)
+        self.first_level = starting_level
         self.running = True
         if self.first_level < 0:
             self.done = True
@@ -64,9 +53,6 @@ class Game:
         self.top_left_y = screen_height - (TOTAL_ROWS * cell_size)
 
         self.pause = False
-
-        self.can_move_left = False
-        self.can_move_right = False
 
         self.curr_piece = Piece(-1)
         self.curr_piece.update_placement(self.curr_piece, self.curr_piece.color, self.board)
@@ -82,17 +68,10 @@ class Game:
         self.display_lines_cleared()
         self.display_level()
 
-        self.current_shift_delay = 0
-        self.current_shift_interval = 0
-
-        self.speedup = False
-
-        self.is_l_pressed = False
-        self.is_j_pressed = False
         self.delay = 60
         self.cleared_lines = False
 
-    def run(self):
+    def run(self, action):
         pygame.display.update()
         self.draw_board()
         self.draw_border()
@@ -100,14 +79,23 @@ class Game:
 
         self.clock.tick(FPS)
 
-        self.key_presses()
-        self.handle_das()
+        self.move(action)
 
         self.fall()
         self.fall_time += 1
 
         if self.speedup:
             self.fall_time += 1
+
+    def move(self, action):
+        if action == 'LEFT':
+            self.curr_piece.move_sideways(LEFT, self.board)
+        elif action == 'RIGHT':
+            self.curr_piece.move_sideways(RIGHT, self.board)     
+        elif action == 'CLOCKWISE':
+            self.curr_piece.rotate(CLOCKWISE, self.board)
+        elif action == 'CLOCKWISE':
+            self.curr_piece.rotate(COUNTER_CLOCKWISE, self.board)
     
     def fall(self):
         if self.delay == 0 and self.curr_piece.spawn_delay:
@@ -120,72 +108,6 @@ class Game:
             self.curr_piece.move_down(self.board)
             self.curr_piece.spawn_delay = False
             self.delay = 0
-    
-    def handle_das(self):
-        if self.current_shift_delay > 0:
-            self.current_shift_delay -= 1
-        elif self.current_shift_interval <= 0:
-            if self.is_j_pressed:
-                if self.curr_piece.move_sideways(LEFT, self.board):
-                    self.current_shift_interval = SHIFT_INTERVAL
-            elif self.is_l_pressed:
-                if self.curr_piece.move_sideways(RIGHT, self.board):
-                    self.current_shift_interval = SHIFT_INTERVAL
-        elif self.current_shift_interval > 0:
-            self.current_shift_interval -= 1
-    
-    def key_presses(self):
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                self.done = True
-                pygame.quit()
-
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_j:
-                    if self.curr_piece.move_sideways(LEFT, self.board):
-                        self.current_shift_delay = SHIFT_DELAY
-                    else:
-                        self.current_shift_delay = 0
-                        self.current_shift_interval = 0
-                    self.is_j_pressed = True
-                elif event.key == pygame.K_l:
-                    if self.curr_piece.move_sideways(RIGHT, self.board):
-                        self.current_shift_delay = SHIFT_DELAY
-                    else:
-                        self.current_shift_delay = 0
-                        self.current_shift_interval = 0
-                    self.is_l_pressed = True
-                elif event.key == pygame.K_k:
-                    self.speedup = True
-                    self.curr_piece.move_down(self.board)
-                
-                if event.key == pygame.K_x:
-                    self.curr_piece.rotate(CLOCKWISE, self.board)
-                elif event.key == pygame.K_z:
-                    self.curr_piece.rotate(COUNTER_CLOCKWISE, self.board)
-
-                if event.key == pygame.K_SPACE:
-                    if not self.is_l_pressed and not self.is_j_pressed:
-                        self.pause = True
-
-            if event.type == pygame.KEYUP:
-                if event.key == pygame.K_k:
-                    self.speedup = False
-
-                if event.key == pygame.K_j:
-                    self.is_j_pressed = False
-                elif event.key == pygame.K_l:
-                    self.is_l_pressed = False
-
-                # Reset the counters when either "J" or "L" key is released
-                if not self.is_j_pressed and not self.is_l_pressed:
-                    self.current_shift_delay = 0
-                    self.current_shift_interval = 0
-
-        while self.pause:
-            for event in pygame.event.get():
-                if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
-                    self.pause = False
 
     def check_loss(self):
         for idx, block in enumerate(self.curr_piece.orientation):
@@ -242,47 +164,3 @@ class Game:
                 col_offset, row_offset = offsets[idx]
                 spot = (piece.col + col_offset, piece.row + row_offset)
                 pygame.draw.rect(self.screen, piece.color, (NEXT_PIECE_X + spot[0] * cell_size, NEXT_PIECE_Y + 75 - (spot[1] * cell_size), cell_size, cell_size))
-
-    def select_level(self, starting_level):
-        pygame.display.set_caption("Select Level")
-
-        selected_level = starting_level
-        levels = 30
-        text_color = (255, 255, 255)
-        background_color = (0, 0, 0)
-
-        key_delay = 125  # Delay in milliseconds between key presses
-        key_timer = 0
-
-        clock = pygame.time.Clock()
-
-        while True:
-            keys = pygame.key.get_pressed()
-
-            key_timer += clock.tick()
-
-            if key_timer >= key_delay:
-                if keys[pygame.K_j]:
-                    selected_level = (selected_level - 1) % levels
-                    key_timer = 0  # Reset the key timer
-
-                if keys[pygame.K_l]:
-                    selected_level = (selected_level + 1) % levels
-                    key_timer = 0  # Reset the key timer
-
-            if keys[pygame.K_RETURN]:
-                return selected_level
-
-            # Clear the screen
-            self.screen.fill(background_color)
-
-            # Display the selected level
-            text = self.font.render(f"Selected Level: {selected_level}", True, text_color)
-            text_rect = text.get_rect(center=(screen_width // 2, screen_height // 2))
-            self.screen.blit(text, text_rect)
-            pygame.display.update()
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    self.done = True
-                    pygame.quit()
-                    return -1

@@ -31,6 +31,46 @@ class Board:
         self.lines_cleared = 0
         self.lines_until_level_change = level_delay[self.level]
         self.frames_index = get_frames_index(self.level)
+
+    def calculate_bumpiness(self):
+        bumpy_list = [max([row for row in range(TOTAL_ROWS) if self.blocks[(col, row)] != (0, 0, 0)], default=0) 
+                      for col in range(TOTAL_COLS - 2)]
+
+        prev_height = None
+        bumpiness = 0
+        for height in bumpy_list:
+            if not prev_height:
+                prev_height = height
+            else:
+                bumpiness += height - prev_height
+
+            prev_height = height
+
+        prev_height = bumpy_list[-1]
+
+        bumpy_list = [max([row for row in range(TOTAL_ROWS) if self.blocks[(col, row)] != (0, 0, 0)], default=0) 
+                      for col in range(TOTAL_COLS - 2, TOTAL_COLS)]
+        
+        double_well = True
+        for height in bumpy_list:
+            if height > prev_height:
+                double_well = False
+            prev_height = height
+
+        return abs(bumpiness), double_well
+    
+    def count_holes(self):
+        holes = 0
+        for col in range(TOTAL_COLS):
+            empty_cells = 0
+            for row in range(TOTAL_ROWS):
+                if self.blocks[(col, row)] != (0, 0, 0):
+                    holes += empty_cells
+                    empty_cells = 0
+                else:
+                    empty_cells += 1
+                    
+        return holes
         
     def clear_lines(self):
         rows_cleared = [False for _ in range(TOTAL_ROWS)]

@@ -1,7 +1,10 @@
 from game import Game
 from piece import Piece
+from agent import Agent
 import os
 import pygame
+
+scores_file = "ai_scores.txt"
 
 def piece_landed(game):
     lines_cleared = game.board.clear_lines()
@@ -16,7 +19,6 @@ def piece_landed(game):
     game.display_level()
     pygame.display.update()
 
-    game.speedup = False
     game.curr_piece = game.next_piece
     
     if game.check_loss():
@@ -33,9 +35,14 @@ def main(starting_level):
     scores.sort(reverse=True)
     game = Game(scores[0], starting_level)
     if game.done:
-            return -1
+        return -1
+    agent = Agent()
     while game.running:
-        game.run()
+        state_old = agent.get_state(game)
+        action = agent.get_action(state_old)
+        
+        game.run(action)
+
         if not game.curr_piece.can_move:
             piece_landed(game)
         if game.done:
@@ -47,32 +54,28 @@ def main(starting_level):
 
     # Write the updated scores back to scores.txt
     write_scores(scores)
-    
-    return game.first_level
 
 def read_scores():
     scores = []
-    if os.path.exists("scores.txt"):
-        with open("scores.txt", "r") as file:
+    if os.path.exists(scores_file):
+        with open(scores_file, "r") as file:
             for line in file:
                 score = int(line)
                 scores.append(score)
     return scores
 
 def write_scores(scores):
-    with open("scores.txt", "w") as file:
+    with open(scores_file, "w") as file:
         for score in scores:
             file.write(str(score) + "\n")
 
 if __name__ == "__main__":
     # Create "scores.txt" if it doesn't exist
-    if not os.path.exists("scores.txt"):
-        with open("scores.txt", "w") as file:
+    if not os.path.exists(scores_file):
+        with open(scores_file, "w") as file:
             file.write("0")
         
     starting_level = 18
 
     while True:
-        starting_level = main(starting_level)
-        if starting_level == -1:
-            break
+        main(starting_level)
