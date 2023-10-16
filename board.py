@@ -32,13 +32,17 @@ class Board:
         self.lines_until_level_change = level_delay[self.level]
         self.frames_index = get_frames_index(self.level)
 
-    def calculate_bumpiness(self):
-        bumpy_list = [max([row for row in range(TOTAL_ROWS) if self.blocks[(col, row)] != (0, 0, 0)], default=0) 
-                      for col in range(TOTAL_COLS - 2)]
+    def get_height_of_each_column(self):
+        return [max([row for row in range(TOTAL_ROWS) if self.blocks[(col, row)] != (0, 0, 0)], default=0) 
+                      for col in range(TOTAL_COLS)]
+
+    # Returns absolute value of current bumpiness, whether or not we have a double well and the max height of the board
+    def get_bumpiness(self):
+        bumpy_list = self.get_height_of_each_column()
 
         prev_height = None
         bumpiness = 0
-        for height in bumpy_list:
+        for height in bumpy_list[:-2]:
             if not prev_height:
                 prev_height = height
             else:
@@ -46,20 +50,25 @@ class Board:
 
             prev_height = height
 
-        prev_height = bumpy_list[-1]
+        prev_height = min(bumpy_list[:-2])
 
         bumpy_list = [max([row for row in range(TOTAL_ROWS) if self.blocks[(col, row)] != (0, 0, 0)], default=0) 
                       for col in range(TOTAL_COLS - 2, TOTAL_COLS)]
         
-        double_well = True
-        for height in bumpy_list:
+        double_well = 1
+        for height in bumpy_list[-2:]:
             if height > prev_height:
-                double_well = False
+                double_well = -1
             prev_height = height
 
-        return abs(bumpiness), double_well
+        max_height = max(bumpy_list)
+        bearable_height = 1
+        if max_height > 14:
+            bearable_height = -1
+
+        return abs(bumpiness), double_well, bearable_height
     
-    def count_holes(self):
+    def get_holes(self):
         holes = 0
         for col in range(TOTAL_COLS):
             empty_cells = 0

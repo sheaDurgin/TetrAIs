@@ -21,6 +21,10 @@ LEFT = -1
 CLOCKWISE = 1
 COUNTER_CLOCKWISE = -1
 
+WELL_COEFFICIENT = 5
+HOLE_COEFFICIENT = 5
+HEIGHT_COEFFICIENT = 5
+
 frames = {
     0: 48, 1: 43, 2: 38, 3: 33, 4: 28, 5: 23, 6: 18, 
     7: 13, 8: 8, 9: 6, 10: 5, 13: 4, 16: 3, 19: 2, 29: 1
@@ -84,18 +88,23 @@ class Game:
         self.fall()
         self.fall_time += 1
 
-        if self.speedup:
-            self.fall_time += 1
+        bumpiness, double_well, bearable_height = self.board.get_bumpiness()
+        holes = self.board.get_holes()
+        reward = (WELL_COEFFICIENT * double_well) - (HOLE_COEFFICIENT * holes) + (HEIGHT_COEFFICIENT * bearable_height) - bumpiness
 
+        return reward
+
+    # action = [MOVEMENT, ROTATION], 0 = No input, otherwise do input
     def move(self, action):
-        if action == 'LEFT':
+        if action == [1, 0, 0, 0, 0]:
+            self.curr_piece.move_sideways(RIGHT, self.board) 
+        elif action == [0, 1, 0, 0, 0]:
             self.curr_piece.move_sideways(LEFT, self.board)
-        elif action == 'RIGHT':
-            self.curr_piece.move_sideways(RIGHT, self.board)     
-        elif action == 'CLOCKWISE':
+        elif action == [0, 0, 1, 0, 0]:
             self.curr_piece.rotate(CLOCKWISE, self.board)
-        elif action == 'CLOCKWISE':
+        elif action == [0, 0, 0, 1, 0]:
             self.curr_piece.rotate(COUNTER_CLOCKWISE, self.board)
+        
     
     def fall(self):
         if self.delay == 0 and self.curr_piece.spawn_delay:
