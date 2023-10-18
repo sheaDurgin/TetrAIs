@@ -42,7 +42,7 @@ class Board:
 
         prev_height = None
         bumpiness = 0
-        for height in bumpy_list[:-2]:
+        for height in bumpy_list:
             if not prev_height:
                 prev_height = height
             else:
@@ -52,21 +52,9 @@ class Board:
 
         prev_height = min(bumpy_list[:-2])
 
-        bumpy_list = [max([row for row in range(TOTAL_ROWS) if self.blocks[(col, row)] != (0, 0, 0)], default=0) 
-                      for col in range(TOTAL_COLS - 2, TOTAL_COLS)]
-        
-        double_well = 1
-        for height in bumpy_list[-2:]:
-            if height > prev_height:
-                double_well = -1
-            prev_height = height
-
         max_height = max(bumpy_list)
-        bearable_height = 1
-        if max_height > 14:
-            bearable_height = -1
 
-        return abs(bumpiness), double_well, bearable_height
+        return abs(bumpiness), max_height
     
     def get_holes(self):
         holes = 0

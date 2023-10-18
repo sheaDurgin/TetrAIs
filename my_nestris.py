@@ -1,16 +1,17 @@
 from game import Game
 from piece import Piece
-from agent import Agent
+# from agent import Agent
 import os
 import pygame
 from helper import plot
 import copy
 
-WELL_COEFFICIENT = 5
-HOLE_COEFFICIENT = 1
-HEIGHT_COEFFICIENT = 5
-
 scores_file = "ai_scores.txt"
+
+# agent = Agent()
+scores = []
+plot_scores = []
+plot_mean_scores = []
 
 def update_next_piece(game):
     game.curr_piece.update_placement(game.curr_piece, game.curr_piece.color, game.board)
@@ -36,60 +37,82 @@ def piece_landed(game):
     if game.check_loss():
         game.running = False
 
-    return lines_cleared
+def get_best_position(all_boards):
+    max_score = float('-inf')
+    best_position = None
+    for board, col, orientation, piece in all_boards:
+        lines_cleared = board.clear_lines()
+        bumpiness, height = board.get_bumpiness()
+        holes = board.get_holes()
+        lines_cleared_additive = lines_cleared
+        if lines_cleared == 3:
+            lines_cleared_additive *= 5
+        elif lines_cleared == 4:
+            lines_cleared_additive *= 10
+        elif lines_cleared > 0:
+            lines_cleared_additive *= 3
+        score = lines_cleared_additive - holes - height
+
+        if score > max_score:
+            max_score = score
+            best_position = (col, orientation)
+    return best_position
 
 def main(starting_level):
     # Read scores from scores.txt and keep them sorted in descending order
     scores = read_scores()
     scores.sort(reverse=True)
-    game = Game(scores[0], starting_level)
-    plot_scores = []
-    plot_mean_scores = []
-    if game.done:
-        return -1
-    agent = Agent()
+    record = scores[0]
+    game = Game(record, starting_level)
+
+    n_games = 0
+
+    all_boards = game.curr_piece.get_all_boards(game.board)
+    best_position = get_best_position(all_boards)
+    game.curr_piece.update_placement(game.curr_piece, game.curr_piece.color, game.board)
+    moved = False
+
+    first_run = True
+
     while game.running:
-        state_old = agent.get_state(game.board, game.curr_piece, game.next_piece)
-        final_move = agent.get_action(state_old)
-
-        game.run(final_move)
-
-        if game.curr_piece.can_move:
-            test_board = copy.deepcopy(game.board)
-            test_curr_piece = copy.deepcopy(game.curr_piece)
-            test_next_piece = copy.deepcopy(game.next_piece)
-            while test_curr_piece.can_move:
-                test_curr_piece.move_down(test_board)
-            bumpiness, double_well, bearable_height = test_board.get_bumpiness()
-            holes = test_board.get_holes()
-            reward = (WELL_COEFFICIENT * double_well) - (HOLE_COEFFICIENT * holes) + (HEIGHT_COEFFICIENT * bearable_height) - bumpiness
-            state_new = agent.get_state(test_board, test_curr_piece, test_next_piece)
-            agent.train_short_memory(state_old, final_move, reward, state_new, game.done)
-            agent.remember(state_old, final_move, reward, state_new, game.done)
+        # state_old = agent.get_state(game.board, game.curr_piece, game.next_piece)
+        # final_move = agent.get_action(state_old)
+        if moved:
+            game.run()
         else:
-            lines_cleared = piece_landed(game)
-            bumpiness, double_well, bearable_height = game.board.get_bumpiness()
-            holes = game.board.get_holes()
-            reward = (WELL_COEFFICIENT * double_well) - (HOLE_COEFFICIENT * holes) + (HEIGHT_COEFFICIENT * bearable_height) - bumpiness + lines_cleared
+            game.run(best_position)
+            moved = True
 
-            state_new = agent.get_state(game.board, game.curr_piece, game.next_piece)
-            agent.train_short_memory(state_old, final_move, reward, state_new, game.done)
-            agent.remember(state_old, final_move, reward, state_new, game.done)
-        
-            update_next_piece(game)
+        if not game.curr_piece.can_move:
+            # state_new = agent.get_state(game.board, game.curr_piece, game.next_piece)
+            # agent.train_short_memory(state_old, final_move, reward, state_new, not game.running)
+            # agent.remember(state_old, final_move, reward, state_new, not game.running)
 
-        if game.done:
-            agent.n_games += 1
-            agent.train_long_memory()
+            piece_landed(game)
+            if game.running:
+                all_boards = game.curr_piece.get_all_boards(game.board)
+                best_position = get_best_position(all_boards)
+                moved = False
+                update_next_piece(game)
+            #print(game.board.score)
+            if first_run:
+                game.running = False
+                first_run = False
 
-            if game.board.score > record:
-                record = game.board.score
-                agent.model.save()
+        if not game.running:
+            # agent.n_games += 1
+            # agent.train_long_memory()
 
-            print('Game', agent.n_games, 'Score', game.board.score, 'Record:', record)
+            # if game.board.score > record:
+            #     record = game.board.score
+            #     agent.model.save()
+
+            n_games += 1
+
+            print('Game', n_games, 'Score', game.board.score, 'Record:', record)
 
             plot_scores.append(game.board.score)
-            mean_score = game.board.score / agent.n_games
+            mean_score = game.board.score / n_games
             plot_mean_scores.append(mean_score)
             plot(plot_scores, plot_mean_scores)
 
@@ -103,7 +126,12 @@ def main(starting_level):
             scores = read_scores()
             scores.sort(reverse=True)
 
-            game = Game(scores[0], starting_level)
+            game = Game(record, starting_level)
+            all_boards = game.curr_piece.get_all_boards(game.board)
+            best_position = get_best_position(all_boards)
+            game.curr_piece.update_placement(game.curr_piece, game.curr_piece.color, game.board)
+            moved = False
+
 
 def read_scores():
     scores = []
@@ -125,7 +153,31 @@ if __name__ == "__main__":
         with open(scores_file, "w") as file:
             file.write("0")
         
-    starting_level = 18
+    starting_level = 29
 
     while True:
         main(starting_level)
+
+# if game.curr_piece.can_move:
+#     test_board = copy.deepcopy(game.board)
+#     test_curr_piece = copy.deepcopy(game.curr_piece)
+#     test_next_piece = copy.deepcopy(game.next_piece)
+#     while test_curr_piece.can_move:
+#         test_curr_piece.move_down(test_board)
+#     bumpiness, double_well, bearable_height = test_board.get_bumpiness()
+#     holes = test_board.get_holes()
+#     reward = (WELL_COEFFICIENT * double_well) - (HOLE_COEFFICIENT * holes) + (HEIGHT_COEFFICIENT * bearable_height) - bumpiness
+#     state_new = agent.get_state(test_board, test_curr_piece, test_next_piece)
+#     agent.train_short_memory(state_old, final_move, reward, state_new, game.done)
+#     agent.remember(state_old, final_move, reward, state_new, game.done)
+# else:
+#     lines_cleared = piece_landed(game)
+#     bumpiness, double_well, bearable_height = game.board.get_bumpiness()
+#     holes = game.board.get_holes()
+#     reward = (WELL_COEFFICIENT * double_well) - (HOLE_COEFFICIENT * holes) + (HEIGHT_COEFFICIENT * bearable_height) - bumpiness + lines_cleared
+
+#     state_new = agent.get_state(game.board, game.curr_piece, game.next_piece)
+#     agent.train_short_memory(state_old, final_move, reward, state_new, game.done)
+#     agent.remember(state_old, final_move, reward, state_new, game.done)
+
+#     update_next_piece(game)

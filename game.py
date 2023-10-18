@@ -40,7 +40,7 @@ offsets = {
 class Game:
     def __init__(self, high_score, starting_level):
         self.high_score = high_score
-        self.done = False
+
         pygame.init()
         #self.font = pygame.font.Font(resource_path("ShortBaby-Mg2w.ttf"), 36)
         self.font = pygame.font.SysFont("comicsans", 36)
@@ -48,18 +48,13 @@ class Game:
         self.screen.fill("black")
         self.first_level = starting_level
         self.running = True
-        if self.first_level < 0:
-            self.done = True
-            return
+
         self.board = Board(self.first_level)
 
         self.top_left_x = (screen_width - (TOTAL_COLS * cell_size)) // 2
         self.top_left_y = screen_height - (TOTAL_ROWS * cell_size)
 
-        self.pause = False
-
         self.curr_piece = Piece(-1)
-        self.curr_piece.update_placement(self.curr_piece, self.curr_piece.color, self.board)
         self.next_piece = Piece(self.curr_piece.letter_index)
         self.display_next_piece(self.next_piece)
 
@@ -75,7 +70,7 @@ class Game:
         self.delay = 60
         self.cleared_lines = False
 
-    def run(self, action):
+    def run(self, best_position=None):
         pygame.display.update()
         self.draw_board()
         self.draw_border()
@@ -83,13 +78,28 @@ class Game:
 
         self.clock.tick(FPS)
 
-        self.move(action)
+        # self.move_agent(action)
+        if best_position is not None:
+            col, orientation = best_position
 
+            val = True
+            while self.curr_piece.orientation != orientation and val:
+                val = self.curr_piece.rotate(CLOCKWISE, self.board)
+
+            val = True
+            while self.curr_piece.orientation != orientation and val:
+                val = self.curr_piece.rotate(COUNTER_CLOCKWISE, self.board)
+
+            while self.curr_piece.col < col and val:
+                val = self.curr_piece.move_sideways(RIGHT, self.board) 
+            while self.curr_piece.col > col and val:
+                self.curr_piece.move_sideways(LEFT, self.board)
+                
         self.fall()
         self.fall_time += 1
 
     # action = [MOVEMENT, ROTATION], 0 = No input, otherwise do input
-    def move(self, action):
+    def move_agent(self, action):
         if action == [1, 0, 0, 0, 0]:
             self.curr_piece.move_sideways(RIGHT, self.board) 
         elif action == [0, 1, 0, 0, 0]:
@@ -97,8 +107,7 @@ class Game:
         elif action == [0, 0, 1, 0, 0]:
             self.curr_piece.rotate(CLOCKWISE, self.board)
         elif action == [0, 0, 0, 1, 0]:
-            self.curr_piece.rotate(COUNTER_CLOCKWISE, self.board)
-        
+            self.curr_piece.rotate(COUNTER_CLOCKWISE, self.board)      
     
     def fall(self):
         if self.delay == 0 and self.curr_piece.spawn_delay:

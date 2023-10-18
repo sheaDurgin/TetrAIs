@@ -69,6 +69,38 @@ shape_orientations = {
     ]
 }
 
+piece_limits = {
+    'i':
+    [
+        (2, 9),
+        (0, 9)
+    ],
+    'o': 
+    [
+        (1, 9)
+    ],
+    't':
+    [
+        (1, 8), (1, 9), (1, 8), (0, 8)
+    ],
+    'l':
+    [
+        (1, 8), (1, 9), (1, 8), (0, 8)
+    ],
+    'j':
+    [
+        (1, 8), (1, 9), (1, 8), (0, 8)
+    ],
+    's':
+    [
+        (1, 8), (0, 8)
+    ],
+    'z':
+    [
+        (1, 8), (0, 8)
+    ]
+}
+
 def get_new_letter(prev_piece_index):
     new_piece = random.randint(0, 7)
     if new_piece == 7 or shapes[new_piece] == prev_piece_index:
@@ -90,16 +122,39 @@ class Piece:
         # binary represenation of current piece orientation
         self.orientation = self.orientations[self.orientations_index]
         self.spawn_delay = True
-
-    def can_move_down(self, board):
-        before_piece = copy.deepcopy(self)
-        self.row -= 1
-        val = True
-        if not self.check_and_update_placement(before_piece, board, False):
-            val = False
-        self.row += 1
-        return val
         
+    def get_all_boards(self, board):
+        all_boards = []
+        i_cnt = 0
+        for col_tuple, orientation in zip(piece_limits[self.letter], shape_orientations[self.letter]):
+            left_col, right_col = col_tuple
+            for col in range(left_col, right_col + 1):
+                piece_copy = copy.deepcopy(self)
+                piece_copy.orientation = orientation
+                piece_copy.col = col
+                board_copy = copy.deepcopy(board)
+                illegal_start = False
+
+                for idx, block in enumerate(piece_copy.orientation):
+                    if block == '1':
+                        col_offset, row_offset = offsets[idx]
+                        spot = (piece_copy.col + col_offset, piece_copy.row + row_offset)
+                        if spot[0] >= TOTAL_COLS or spot[0] < 0 or spot[1] < 0 or spot[1] >= TOTAL_ROWS:
+                            continue
+                        elif board_copy.blocks[spot] != (0, 0, 0):
+                            illegal_start = True
+                            break
+                
+                if illegal_start:
+                    continue
+
+                while piece_copy.can_move:
+                    piece_copy.move_down(board_copy)
+
+                all_boards.append((board_copy, col, orientation, piece_copy))
+
+        return all_boards
+
     def move_down(self, board):
         before_piece = copy.deepcopy(self)
         self.row -= 1
@@ -128,6 +183,8 @@ class Piece:
         if not self.check_and_update_placement(before_piece, board):
             self.orientations_index = original_orientation
             self.orientation = self.orientations[self.orientations_index]
+            return False
+        return True
 
     def update_placement(self, piece, color, board):
         for idx, block in enumerate(piece.orientation):
