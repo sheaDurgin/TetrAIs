@@ -93,7 +93,7 @@ class Game:
             while self.curr_piece.col < col and val:
                 val = self.curr_piece.move_sideways(RIGHT, self.board) 
             while self.curr_piece.col > col and val:
-                self.curr_piece.move_sideways(LEFT, self.board)
+                val = self.curr_piece.move_sideways(LEFT, self.board)
                 
         self.fall()
         self.fall_time += 1
