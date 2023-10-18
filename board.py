@@ -55,6 +55,36 @@ class Board:
         max_height = max(bumpy_list)
 
         return abs(bumpiness), max_height
+
+    def get_line_dependencies(self):
+        def calculate_line_dependencies(cnt):
+            line_dependencies = 0
+            if cnt >= 3:
+                line_dependencies += 1
+                cnt -= 3
+                if cnt >= 4:
+                    line_dependencies += cnt // 4
+            cnt = 0
+            return line_dependencies
+                
+        line_dependencies = 0
+        prev_cells = [(1, 1, 1) for _ in range(TOTAL_ROWS)]
+        for col in range(TOTAL_COLS):
+            cnt = 0
+            for row in range(TOTAL_ROWS):
+                color = self.blocks[(col, row)]
+                if color == (0, 0, 0) and prev_cells[row] != (0, 0, 0):
+                    if col < TOTAL_COLS - 1 and self.blocks[(col+1, row)] != (0, 0, 0):
+                        cnt += 1
+                    elif col == TOTAL_COLS - 1:
+                        cnt += 1
+                else:
+                    line_dependencies += calculate_line_dependencies(cnt)
+                prev_cells[row] = color
+
+            line_dependencies += calculate_line_dependencies(cnt)
+
+        return line_dependencies
     
     def get_holes(self):
         holes = 0

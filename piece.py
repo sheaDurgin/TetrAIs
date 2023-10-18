@@ -184,6 +184,7 @@ class Piece:
             self.orientations_index = original_orientation
             self.orientation = self.orientations[self.orientations_index]
             return False
+            
         return True
 
     def update_placement(self, piece, color, board):
